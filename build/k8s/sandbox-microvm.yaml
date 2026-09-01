@@ -1,0 +1,26 @@
+# A Sandbox scheduled onto a Lambda MicroVM by the provider seam.
+# The provider maps this PodSpec subset -> RunMicrovm.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: demo-microvm
+  namespace: default
+  annotations:
+    microvm.agents.x-k8s.io/backend: lambda-microvm
+    microvm.agents.x-k8s.io/image: microvm-sandbox-shim
+    microvm.agents.x-k8s.io/execution-role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/MicrovmSandboxShimExecRole
+    microvm.agents.x-k8s.io/secret-env: microvm-shim/test-secret
+spec:
+  podTemplate:
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      containers:
+        - name: sandbox
+          image: microvm-sandbox-shim   # informational; MicroVM runs the prebuilt sandboxd image
+          env:
+            - name: TENANT_ID
+              value: acme-corp
+          resources:
+            requests:
+              memory: 2Gi

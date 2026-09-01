@@ -1,0 +1,48 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: microvm-provider }
+rules:
+  - apiGroups: ["agents.x-k8s.io"]
+    resources: ["sandboxes","sandboxes/status","sandboxes/finalizers"]
+    verbs: ["get","list","watch","update","patch"]
+  - apiGroups: [""]
+    resources: ["secrets","configmaps","serviceaccounts"]
+    verbs: ["get","list","watch","create","update","patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get","list","watch","create","update","patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: microvm-provider }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: microvm-provider }
+subjects:
+  - { kind: ServiceAccount, name: microvm-provider, namespace: default }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: microvm-provider, namespace: default }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: microvm-provider } }
+  template:
+    metadata: { labels: { app: microvm-provider } }
+    spec:
+      serviceAccountName: microvm-provider
+      nodeSelector: { kubernetes.io/arch: arm64 }
+      containers:
+        - name: provider
+          image: public.ecr.aws/aws-cli/aws-cli:latest
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -e
+              aws s3 cp s3://${ARTIFACT_BUCKET}/microvm-provider /tmp/provider
+              chmod +x /tmp/provider
+              exec /tmp/provider --kubeconfig= --region ${AWS_REGION} --leader-elect --back-all-sandboxes --cluster ${CLUSTER}
+          env:
+            - { name: AWS_REGION, value: ${AWS_REGION} }
+            - { name: AWS_ACCOUNT_ID, value: "${AWS_ACCOUNT_ID}" }
+          resources:
+            requests: { cpu: "50m", memory: "96Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }

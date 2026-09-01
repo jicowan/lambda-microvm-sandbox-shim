@@ -1,0 +1,6 @@
+{"Records":[
+  {"messageId":"msg-1","body":"{\"value\": 10}"},
+  {"messageId":"msg-2","body":"not-json"},
+  {"messageId":"msg-3","body":"{\"value\": -5}"},
+  {"messageId":"msg-4","body":"{\"value\": 3}"}
+]}

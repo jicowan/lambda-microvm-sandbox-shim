@@ -1,0 +1,30 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: demo-mapping
+  namespace: default
+  annotations:
+    microvm.agents.x-k8s.io/backend: lambda-microvm
+    microvm.agents.x-k8s.io/execution-role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/MicrovmSandboxShimExecRole
+spec:
+  operatingMode: Running
+  podTemplate:
+    spec:
+      nodeSelector: { kubernetes.io/arch: arm64 }
+      containers:
+        - name: sandbox
+          image: microvm-sandbox-shim
+          command: ["/bin/sh", "-c"]
+          args: ["echo startup-ran > /workspace/startup-marker.txt"]
+          workingDir: /workspace
+          ports:
+            - containerPort: 8888
+          env:
+            - name: PLAIN
+              value: plainval
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef: { name: app-secret, key: db-url }
+          resources:
+            requests:
+              memory: 1Gi

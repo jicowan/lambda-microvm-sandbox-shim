@@ -1,0 +1,31 @@
+# Lambda MicroVM image: prebuilt linux/arm64 binaries (sandboxd + microvm-shim).
+#
+# No in-build compilation and no third-party image pulls — the binaries are
+# cross-compiled locally and shipped in the zip, so the only build dependency
+# is the snapshot-compatible Lambda base container image.
+#
+# Lambda runs this Dockerfile server-side on top of the MicroVM base image
+# (--base-image-arn) during CreateMicrovmImage.
+FROM public.ecr.aws/lambda/microvms:al2023-minimal
+
+COPY sandboxd     /usr/local/bin/sandboxd
+COPY microvm-shim /usr/local/bin/microvm-shim
+
+RUN mkdir -p /workspace
+
+# Shim serves hooks + REST proxy on 8080. gRPC mode:
+#   direct (default): sandboxd serves gRPC on 0.0.0.0:9090 (edge talks to it).
+#   proxy: shim TCP-proxies 9090 -> sandboxd loopback 9091.
+ENV SANDBOXD_BIN=/usr/local/bin/sandboxd \
+    WORKSPACE=/workspace \
+    PUBLIC_HTTP_ADDR=0.0.0.0:8080 \
+    PUBLIC_GRPC_ADDR=0.0.0.0:9090 \
+    SHIM_GRPC_MODE=diag \
+    GRPC_GO_LOG_SEVERITY_LEVEL=info \
+    GRPC_GO_LOG_VERBOSITY_LEVEL=2
+
+EXPOSE 8080 9090
+
+# Lambda starts this via ENTRYPOINT, then polls the /ready hook (port 8080)
+# before snapshotting.
+ENTRYPOINT ["/usr/local/bin/microvm-shim"]

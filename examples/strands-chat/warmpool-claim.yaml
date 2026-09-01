@@ -1,0 +1,45 @@
+# A warm pool of Strands-agent MicroVMs + a claim that checks one out.
+#
+# The template bakes in the Bedrock exec role (via serviceAccountName) and
+# AWS_REGION, so every pre-warmed VM can talk to Bedrock. The claim carries no
+# per-claim env, so it ADOPTS a ready warm VM (adding env would force a cold
+# start). The adopted Sandbox's status.serviceFQDN is what the fork's claim
+# controller treats as "network ready" for non-Pod backends.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: microvm-bedrock
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/MicrovmSandboxShimExecRole
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata: { name: strands-template, namespace: default }
+spec:
+  podTemplate:
+    spec:
+      serviceAccountName: microvm-bedrock
+      nodeSelector: { kubernetes.io/arch: arm64 }
+      containers:
+        - name: agent
+          image: microvm-sandbox-shim
+          env:
+            - { name: AWS_REGION, value: ${AWS_REGION} }
+          resources:
+            requests:
+              memory: 2Gi
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata: { name: strands-pool, namespace: default }
+spec:
+  replicas: 2
+  updateStrategy: { type: Recreate }
+  sandboxTemplateRef: { name: strands-template }
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxClaim
+metadata: { name: strands-claim, namespace: default }
+spec:
+  warmPoolRef: { name: strands-pool }

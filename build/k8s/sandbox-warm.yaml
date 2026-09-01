@@ -1,0 +1,18 @@
+# Warm-eligible: default image, no per-claim env/secret/command -> adopted from pool.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: demo-warm
+  namespace: default
+  annotations:
+    microvm.agents.x-k8s.io/backend: lambda-microvm
+spec:
+  podTemplate:
+    spec:
+      nodeSelector: { kubernetes.io/arch: arm64 }
+      containers:
+        - name: sandbox
+          image: microvm-sandbox-shim
+          resources:
+            requests:
+              memory: 2Gi

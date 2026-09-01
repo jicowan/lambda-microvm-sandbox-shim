@@ -1,0 +1,27 @@
+# Built binaries (cross-compiled arm64; rebuild via BUILDING.md / FORK.md)
+*.bin
+*.test
+*.out
+/shim/shim
+/client/client
+build/image/microvm-shim
+build/image/sandboxd
+build/image/app.zip
+build/client/microvmtest
+build/client/ca-certificates.crt
+provider/provider
+/microvm-provider
+/extctl
+/sandboxd
+
+# Rendered, credential-bearing artifact (source is build/k8s/job.yaml.template).
+# The rendered form embeds a short-lived JWE token + a presigned S3 URL — never commit it.
+build/k8s/job.yaml
+
+# Local environment / cluster access
+.env
+*.kubeconfig
+kubeconfig*
+
+# OS / editor
+.DS_Store

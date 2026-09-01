@@ -1,0 +1,31 @@
+# Runs the forked agent-sandbox SDK client (microvmtest) INSIDE EKS, against a
+# live Lambda MicroVM endpoint. Demonstrates the target topology: an agent in
+# EKS driving a MicroVM sandbox via the runtime-compatibility transport.
+#
+# ENDPOINT and TOKEN are templated in at apply time (token is short-lived).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: microvm-smoketest
+  namespace: default
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { app: microvm-smoketest }
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      containers:
+        - name: microvmtest
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/microvm-shim-client:v1
+          args: ["--endpoint", "$(MVM_ENDPOINT)", "--token", "$(MVM_TOKEN)"]
+          env:
+            - name: MVM_ENDPOINT
+              value: "__ENDPOINT__"
+            - name: MVM_TOKEN
+              value: "__TOKEN__"
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "250m", memory: "128Mi" }

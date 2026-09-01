@@ -1,0 +1,32 @@
+# The execution role is passed the idiomatic way: the Sandbox runs as a
+# ServiceAccount, and the provider resolves that SA -> IAM role (here via the
+# SA's eks.amazonaws.com/role-arn annotation; Pod Identity associations also
+# work when the provider has --cluster set). The resolved role is used as the
+# MicroVM execution role (must trust lambda.amazonaws.com), giving the agent
+# Bedrock access. Region is passed via container env -> runHookPayload -> session.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: microvm-bedrock
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/MicrovmSandboxShimExecRole
+---
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: strands-chat
+  namespace: default
+  annotations:
+    microvm.agents.x-k8s.io/backend: lambda-microvm
+spec:
+  podTemplate:
+    spec:
+      serviceAccountName: microvm-bedrock
+      nodeSelector: { kubernetes.io/arch: arm64 }
+      containers:
+        - name: agent
+          image: microvm-sandbox-shim
+          env:
+            - { name: AWS_REGION, value: ${AWS_REGION} }
+          resources: { requests: { memory: 2Gi } }
